@@ -169,6 +169,11 @@ public class PageInterceptor implements Interceptor {
 		List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
 		// 利用Configuration、查询记录数的Sql语句countSql、参数映射关系parameterMappings和参数对象page建立查询记录数对应的BoundSql对象。
 		BoundSql countBoundSql = new BoundSql(mappedStatement.getConfiguration(), countSql, parameterMappings, obj);
+		// 在原boundSQL中存在additionalParameters等参数，new出来的sql可能没有这些参数，会造成生成sql是报错，所以设置进来
+		// 还有一种方法即就用原来的BoundSql, 改掉里面的sql, 用完后再改回来即可
+		ReflectUtil.setFieldValue(countBoundSql, "additionalParameters", ReflectUtil.getFieldValue(boundSql, "additionalParameters"));
+		ReflectUtil.setFieldValue(countBoundSql, "metaParameters", ReflectUtil.getFieldValue(boundSql, "metaParameters"));
+
 		// 通过mappedStatement、参数对象page和BoundSql对象countBoundSql建立一个用于设定参数的ParameterHandler对象
 		ParameterHandler parameterHandler = new DefaultParameterHandler(mappedStatement, obj, countBoundSql);
 		// 通过connection建立一个countSql对应的PreparedStatement对象。
@@ -268,6 +273,28 @@ public class PageInterceptor implements Interceptor {
 		 * @param fieldValue 目标值
 		 */
 		public static void setFieldValue(Object obj, String fieldName, String fieldValue) {
+			Field field = ReflectUtil.getField(obj, fieldName);
+			if (field != null) {
+				try {
+					field.setAccessible(true);
+					field.set(obj, fieldValue);
+				} catch (IllegalArgumentException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IllegalAccessException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		/**
+		 * 利用反射设置指定对象的指定属性为指定的值
+		 *
+		 * @param obj 目标对象
+		 * @param fieldName 目标属性
+		 * @param fieldValue 目标值
+		 */
+		public static void setFieldValue(Object obj, String fieldName, Object fieldValue) {
 			Field field = ReflectUtil.getField(obj, fieldName);
 			if (field != null) {
 				try {
